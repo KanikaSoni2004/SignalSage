@@ -72,15 +72,19 @@ class OpenAICompatBackend:
         raw_key = api_key or groq_key or _get_secret_or_env("LLM_API_KEY", "")
         self.api_key = raw_key.strip()
         
-        # 2. Set Base URL strictly to Groq's v1 endpoint
+                # 2. Set Base URL strictly to Groq's v1 endpoint
         default_base_url = "https://api.groq.com/openai/v1" if self.api_key.startswith("gsk_") else "https://api.openai.com/v1"
         raw_base = base_url or _get_secret_or_env("OPENAI_BASE_URL", default_base_url)
-        
+
         # Clean trailing slashes
         clean_base = raw_base.strip().rstrip("/")
         if clean_base.endswith("/chat/completions"):
-            clean_base = clean_base[:-17].rstrip("/")
-            
+            clean_base = clean_base[:-len("/chat/completions")].rstrip("/")
+
+        # Groq requires the /v1 segment: add it if it's missing
+        if "groq.com" in clean_base and not clean_base.endswith("/v1"):
+            clean_base = clean_base + "/v1"
+
         self.base_url = clean_base
         self.model = model
         self.json_mode = json_mode
