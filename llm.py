@@ -89,6 +89,7 @@ class OpenAICompatBackend:
         self.model = model
         self.json_mode = json_mode
         self.timeout = timeout
+        self.name = f"groq-{model}".replace(":", "-").replace("/", "-")
 
     def generate(self, prompt, system_prompt=""):
         headers = {
