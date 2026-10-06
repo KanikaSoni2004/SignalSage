@@ -67,15 +67,16 @@ class OllamaBackend:
 
 class OpenAICompatBackend:
     def __init__(self, model="llama-3.3-70b-versatile", base_url=None, api_key=None, json_mode=False, timeout=300):
-        # 1. Fetch Key
+        # 1. Fetch API Key
         groq_key = _get_secret_or_env("GROQ_API_KEY")
         raw_key = api_key or groq_key or _get_secret_or_env("LLM_API_KEY", "")
         self.api_key = raw_key.strip()
         
-        # 2. Fetch & Clean Base URL
+        # 2. Set Base URL strictly to Groq's v1 endpoint
         default_base_url = "https://api.groq.com/openai/v1" if self.api_key.startswith("gsk_") else "https://api.openai.com/v1"
         raw_base = base_url or _get_secret_or_env("OPENAI_BASE_URL", default_base_url)
         
+        # Clean trailing slashes
         clean_base = raw_base.strip().rstrip("/")
         if clean_base.endswith("/chat/completions"):
             clean_base = clean_base[:-17].rstrip("/")
@@ -84,8 +85,35 @@ class OpenAICompatBackend:
         self.model = model
         self.json_mode = json_mode
         self.timeout = timeout
-        self.name = f"openai-{model}".replace(":", "-").replace("/", "-")
 
+    def generate(self, prompt, system_prompt=""):
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        endpoint = f"{self.base_url}/chat/completions"
+        
+        body = {
+            "model": self.model,
+            "messages": [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": prompt}
+            ]
+        }
+        
+        try:
+            r = requests.post(endpoint, headers=headers, json=body, timeout=self.timeout)
+            r.raise_for_status()
+            data = r.json()
+            return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            # Print full debug info in logs to reveal exact error body from Groq
+            print(f"Error calling {endpoint}: {e}")
+            if 'r' in locals() and hasattr(r, 'text'):
+                print(f"Response Body: {r.text}")
+            raise e
+          
     def chat(self, messages):
         if not self.api_key:
             raise ValueError(
@@ -99,7 +127,7 @@ class OpenAICompatBackend:
         headers = {
             "Authorization": f"Bearer {self.api_key}",
             "Content-Type": "application/json"
-        }
+            }
         
         r = requests.post(f"{self.base_url}/chat/completions", headers=headers, json=body, timeout=self.timeout)
         r.raise_for_status()
