@@ -21,13 +21,12 @@ except ImportError:
 
 
 def _get_secret_or_env(key, default=""):
-    """Safely retrieves keys from Streamlit secrets or OS environment variables."""
-    if st is not None:
-        try:
-            if key in st.secrets:
-                return str(st.secrets[key])
-        except Exception:
-            pass
+    try:
+        import streamlit as st
+        if key in st.secrets:
+            return str(st.secrets[key])
+    except Exception:
+        pass
     return os.getenv(key, default)
 
 
