@@ -67,13 +67,15 @@ class OllamaBackend:
 
 
 class OpenAICompatBackend:
-    def __init__(self, model="llama-3.3-70b-versatile", base_url=None, api_key=None, json_mode=True, timeout=300):
-        # Resolve Base URL (Groq default if GROQ_API_KEY is found, otherwise standard OpenAI)
+    def __init__(self, model="llama-3.3-70b-versatile", base_url=None, api_key=None, json_mode=False, timeout=300):
+        # Resolve Base URL
         groq_key = _get_secret_or_env("GROQ_API_KEY")
         default_base_url = "https://api.groq.com/openai/v1" if groq_key else "https://api.openai.com/v1"
         
         self.base_url = (base_url or _get_secret_or_env("OPENAI_BASE_URL", default_base_url)).rstrip("/")
-        self.api_key = api_key or groq_key or _get_secret_or_env("LLM_API_KEY", "")
+        # Strip trailing/leading white spaces or non-printable chars from API Key
+        raw_key = api_key or groq_key or _get_secret_or_env("LLM_API_KEY", "")
+        self.api_key = raw_key.strip() if raw_key else ""
         self.model, self.json_mode, self.timeout = model, json_mode, timeout
         self.name = f"openai-{model}".replace(":", "-").replace("/", "-")
 
