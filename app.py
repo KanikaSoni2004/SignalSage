@@ -107,7 +107,7 @@ def make_backend():
         return MockBackend("good")
     if ai_mode == "Local AI (Ollama)":
         return OllamaBackend(ollama_model)
-        if ai_mode == "Cloud AI (Groq)":
+    if ai_mode == "Cloud AI (Groq)":
         return OpenAICompatBackend(model="openai/gpt-oss-120b", json_mode=True)
     return None
 
