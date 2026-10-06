@@ -67,17 +67,29 @@ class OllamaBackend:
 
 class OpenAICompatBackend:
     def __init__(self, model="llama-3.3-70b-versatile", base_url=None, api_key=None, json_mode=False, timeout=300):
-        # Resolve Base URL
         groq_key = _get_secret_or_env("GROQ_API_KEY")
-        default_base_url = "https://api.groq.com/openai/v1" if groq_key else "https://api.openai.com/v1"
+        
+        # Default base URL without duplicate paths
+        default_base_url = "https://api.groq.com/openai" if groq_key else "https://api.openai.com"
         
         raw_base = base_url or _get_secret_or_env("OPENAI_BASE_URL", default_base_url)
-        # Ensure base_url strictly ends at /v1 (no trailing slashes or /chat/completions)
-        self.base_url = raw_base.rstrip("/").removesuffix("/chat/completions")
+        
+        # Clean trailing slashes and existing suffixes
+        clean_base = raw_base.strip().rstrip("/")
+        if clean_base.endswith("/chat/completions"):
+            clean_base = clean_base[:-17]
+        if clean_base.endswith("/v1"):
+            clean_base = clean_base[:-3]
+            
+        # Ensure /v1 is appended once
+        self.base_url = f"{clean_base}/v1"
         
         raw_key = api_key or groq_key or _get_secret_or_env("LLM_API_KEY", "")
-        self.api_key = raw_key.strip() if raw_key else ""
-        self.model, self.json_mode, self.timeout = model, json_mode, timeout
+        self.api_key = "".join(raw_key.split()) if raw_key else ""
+        
+        self.model = model
+        self.json_mode = json_mode
+        self.timeout = timeout
         self.name = f"openai-{model}".replace(":", "-").replace("/", "-")
 
     def chat(self, messages):
