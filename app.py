@@ -85,10 +85,10 @@ with st.sidebar:
                               help="Smaller = more windows and finer timing, but more compute and more alerts.")
     hist_share = st.slider("History used as baseline (%)", 20, 70, 45, 5, key="hist") / 100
     st.markdown("---")
-    ai_mode = st.radio("Engineer messages", ["Screening only", "Template (no AI)", "Demo model (mock)", "Local AI (Ollama)"],
-                       index=1, key="ai_mode",
-                       help="Template = rule-written text. Mock = fake model for testing the interface. "
-                            "Ollama = a real local model such as IBM Granite (slow on a laptop).")
+    ai_mode = st.radio("Engineer messages", ["Screening only", "Template (no AI)", "Demo model (mock)", "Local AI (Ollama)", "Cloud AI (Groq)"],
+                   index=4, key="ai_mode",
+                   help="Template = rule-written text. Mock = fake model for testing. "
+                        "Ollama = local model. Groq = fast cloud LLM using Groq API.")
     ollama_model = "granite4:tiny-h"
     if ai_mode == "Local AI (Ollama)":
         installed = engine.ollama_models()
@@ -107,6 +107,8 @@ def make_backend():
         return MockBackend("good")
     if ai_mode == "Local AI (Ollama)":
         return OllamaBackend(ollama_model)
+    if ai_mode == "Cloud AI (Groq)":
+        return OpenAICompatBackend(model="llama-3.3-70b-versatile")
     return None
 
 
