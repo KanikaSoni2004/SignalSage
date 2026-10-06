@@ -13,7 +13,7 @@ from plotly.subplots import make_subplots
 
 import engine
 from engine import W
-from llm import MockBackend, OllamaBackend
+from llm import MockBackend, OllamaBackend, OpenAICompatBackend
 from signalsage_core import FAULTS
 
 st.set_page_config(page_title="SignalSage", page_icon="📡", layout="wide")
