@@ -7,19 +7,33 @@ is the model's raw text, which the agent expects to be ONE JSON object).
 
 Backends
   OllamaBackend        local model via Ollama (no account, no API key). Default: IBM Granite.
-  OpenAICompatBackend  any OpenAI-compatible endpoint (set OPENAI_BASE_URL / LLM_API_KEY).
+  OpenAICompatBackend  any OpenAI-compatible endpoint (Groq, OpenAI, OpenRouter, etc.).
   MockBackend          scripted fake "LLM" so you can test the whole pipeline with no model.
 """
 import json
 import os
-import re
-
 import requests
+
+try:
+    import streamlit as st
+except ImportError:
+    st = None
+
+
+def _get_secret_or_env(key, default=""):
+    """Safely retrieves keys from Streamlit secrets or OS environment variables."""
+    if st is not None:
+        try:
+            if key in st.secrets:
+                return str(st.secrets[key])
+        except Exception:
+            pass
+    return os.getenv(key, default)
 
 
 class OllamaBackend:
     def __init__(self, model="granite4", host=None, num_ctx=4096, timeout=900):
-        host = host or os.getenv("OLLAMA_HOST", "http://localhost:11434")
+        host = host or _get_secret_or_env("OLLAMA_HOST", "http://localhost:11434")
         if not host.startswith("http"):
             host = "http://" + host
         self.host, self.model, self.num_ctx, self.timeout = host, model, num_ctx, timeout
@@ -28,33 +42,57 @@ class OllamaBackend:
     def chat(self, messages):
         r = requests.post(
             f"{self.host}/api/chat",
-            json={"model": self.model, "messages": messages, "stream": False,
-                  "format": "json",                      # forces valid JSON output
-                  "keep_alive": "30m",                   # keep the model loaded between calls
-                  "options": {"temperature": 0.0, "seed": 0, "num_ctx": self.num_ctx,
-                              "num_predict": 400}},      # cap reply length (reports are short)
-            timeout=self.timeout)
+            json={
+                "model": self.model,
+                "messages": messages,
+                "stream": False,
+                "format": "json",                     # forces valid JSON output
+                "keep_alive": "30m",                  # keep the model loaded between calls
+                "options": {
+                    "temperature": 0.0,
+                    "seed": 0,
+                    "num_ctx": self.num_ctx,
+                    "num_predict": 400,               # cap reply length (reports are short)
+                },
+            },
+            timeout=self.timeout,
+        )
         if r.status_code != 200:
-            hint = (f"\nModel '{self.model}' is not installed. Run:  ollama pull {self.model}"
-                    "\n(see installed names with:  ollama list)") if r.status_code == 404 else ""
+            hint = (
+                f"\nModel '{self.model}' is not installed. Run:  ollama pull {self.model}"
+                "\n(see installed names with:  ollama list)"
+            ) if r.status_code == 404 else ""
             raise RuntimeError(f"Ollama returned HTTP {r.status_code}: {r.text[:300]}{hint}")
         return r.json()["message"]["content"]
 
 
 class OpenAICompatBackend:
-    def __init__(self, model, base_url=None, api_key=None, json_mode=True, timeout=300):
-        self.base_url = (base_url or os.getenv("OPENAI_BASE_URL", "https://api.openai.com/v1")).rstrip("/")
-        self.api_key = api_key or os.getenv("LLM_API_KEY", "")
+    def __init__(self, model="llama-3.3-70b-versatile", base_url=None, api_key=None, json_mode=True, timeout=300):
+        # Resolve Base URL (Groq default if GROQ_API_KEY is found, otherwise standard OpenAI)
+        groq_key = _get_secret_or_env("GROQ_API_KEY")
+        default_base_url = "https://api.groq.com/openai/v1" if groq_key else "https://api.openai.com/v1"
+        
+        self.base_url = (base_url or _get_secret_or_env("OPENAI_BASE_URL", default_base_url)).rstrip("/")
+        self.api_key = api_key or groq_key or _get_secret_or_env("LLM_API_KEY", "")
         self.model, self.json_mode, self.timeout = model, json_mode, timeout
         self.name = f"openai-{model}".replace(":", "-").replace("/", "-")
 
     def chat(self, messages):
+        if not self.api_key:
+            raise ValueError(
+                "No API Key found. Please add GROQ_API_KEY or LLM_API_KEY to Streamlit Secrets."
+            )
+        
         body = {"model": self.model, "messages": messages, "temperature": 0}
         if self.json_mode:
             body["response_format"] = {"type": "json_object"}
-        r = requests.post(f"{self.base_url}/chat/completions",
-                          headers={"Authorization": f"Bearer {self.api_key}"},
-                          json=body, timeout=self.timeout)
+            
+        headers = {
+            "Authorization": f"Bearer {self.api_key}",
+            "Content-Type": "application/json"
+        }
+        
+        r = requests.post(f"{self.base_url}/chat/completions", headers=headers, json=body, timeout=self.timeout)
         r.raise_for_status()
         return r.json()["choices"][0]["message"]["content"]
 
@@ -91,14 +129,23 @@ class MockBackend:
     def chat(self, messages):
         sys_prompt = messages[0]["content"]
         if "NO_TOOLS" in sys_prompt:                                  # LLM-only configuration
-            return json.dumps({"action": "final", "report": {
-                "verdict": "unsure", "fault_type": None, "confidence": 0.3,
-                "evidence": [], "explanation": "mock model cannot judge raw numbers.",
-                "next_step": "inspect manually"}})
+            return json.dumps({
+                "action": "final",
+                "report": {
+                    "verdict": "unsure",
+                    "fault_type": None,
+                    "confidence": 0.3,
+                    "evidence": [],
+                    "explanation": "mock model cannot judge raw numbers.",
+                    "next_step": "inspect manually",
+                },
+            })
         res = self._last_tool_result(messages, "ml_fault_probability")
         if res is None:
-            return json.dumps({"action": "call_tool",
-                               "tools": ["ml_fault_probability", "compare_to_history", "check_stuck", "check_spikes"]})
+            return json.dumps({
+                "action": "call_tool",
+                "tools": ["ml_fault_probability", "compare_to_history", "check_stuck", "check_spikes"],
+            })
         p = res["fault_probability"]
         corrected = any(m["role"] == "user" and m["content"].startswith("VERIFIER") for m in messages)
         shown = p if (self.mode != "sloppy" or corrected) else round(min(1.0, p + 0.2), 4)
@@ -109,13 +156,17 @@ class MockBackend:
         expl = "mock explanation based on the ML tool output."
         if self.mode == "hallucinate" and not corrected:
             expl = "The readings are frozen at a flat value and the signal shows clipping at its maximum."
-        return json.dumps({"action": "final", "report": {
-            "verdict": verdict,
-            "fault_type": res["predicted_fault_type"] if fault else None,
-            "confidence": round(abs(p - 0.5) * 2, 3),
-            "evidence": [{"tool": "ml_fault_probability", "field": "fault_probability", "value": shown}],
-            "explanation": expl,
-            "next_step": "human review" if verdict == "unsure" else ("review the flagged window" if fault else "no action")}})
+        return json.dumps({
+            "action": "final",
+            "report": {
+                "verdict": verdict,
+                "fault_type": res["predicted_fault_type"] if fault else None,
+                "confidence": round(abs(p - 0.5) * 2, 3),
+                "evidence": [{"tool": "ml_fault_probability", "field": "fault_probability", "value": shown}],
+                "explanation": expl,
+                "next_step": "human review" if verdict == "unsure" else ("review the flagged window" if fault else "no action"),
+            },
+        })
 
 
 def extract_json(text):
