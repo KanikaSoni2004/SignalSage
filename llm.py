@@ -73,7 +73,6 @@ class OpenAICompatBackend:
         default_base_url = "https://api.groq.com/openai/v1" if groq_key else "https://api.openai.com/v1"
         
         self.base_url = (base_url or _get_secret_or_env("OPENAI_BASE_URL", default_base_url)).rstrip("/")
-        # Strip trailing/leading white spaces or non-printable chars from API Key
         raw_key = api_key or groq_key or _get_secret_or_env("LLM_API_KEY", "")
         self.api_key = raw_key.strip() if raw_key else ""
         self.model, self.json_mode, self.timeout = model, json_mode, timeout
