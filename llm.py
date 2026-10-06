@@ -134,7 +134,8 @@ class OpenAICompatBackend:
             }
         
         r = requests.post(f"{self.base_url}/chat/completions", headers=headers, json=body, timeout=self.timeout)
-        r.raise_for_status()
+        if r.status_code != 200:
+            raise RuntimeError(f"Groq returned HTTP {r.status_code}: {r.text[:400]}")
         return r.json()["choices"][0]["message"]["content"]
 
 
