@@ -15,9 +15,10 @@ import engine
 from engine import W
 from llm import MockBackend, OllamaBackend, OpenAICompatBackend
 from signalsage_core import FAULTS
+import theme
 
 st.set_page_config(page_title="SignalSage", page_icon="📡", layout="wide")
-
+theme.apply_theme("dark")
 GREEN, RED, AMBER, BLUE, GREY = "#16a34a", "#dc2626", "#d97706", "#2563eb", "#94a3b8"
 VERDICT = {"normal": ("Looks healthy", GREEN), "data_fault": ("Data fault suspected", RED),
            "unsure": ("Needs a human look", AMBER)}
