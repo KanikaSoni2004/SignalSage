@@ -431,3 +431,6 @@ with tab3:
 - Free-text explanations are only partly verifiable; three of eight fault types have a reliable evidence rule.
 - A history window containing many faults will teach the system a distorted idea of "normal".
 """)
+st.markdown("---")
+st.caption("Built by **Kanika Soni** · B.Tech ECE, UIT-RGPV · Created during the AICTE–BharatCares–IBM SkillsBuild "
+           "ML & Applied AI Internship 2026 · [GitHub](https://github.com/KanikaSoni2004/SignalSage) · © 2026")
