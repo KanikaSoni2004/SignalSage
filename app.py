@@ -433,4 +433,4 @@ with tab3:
 """)
 st.markdown("---")
 st.caption("Built by **Kanika Soni** · B.Tech ECE, UIT-RGPV · Created during the AICTE–BharatCares–IBM SkillsBuild "
-           "ML & Applied AI Internship 2026 · [GitHub](https://github.com/KanikaSoni2004/SignalSage) · © 2026")
+           "ML & Applied AI Internship 2026 · © 2026")
