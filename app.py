@@ -212,6 +212,32 @@ def kpis(container, df):
 # ------------------------------------------------------------------------------------ tabs
 tab1, tab2, tab3 = st.tabs(["📈 Audit your data", "⏱️ Live replay", "ℹ️ How it works"])
 
+# ======================================================================= TAB 3: about
+with tab3:
+    st.markdown("""
+**What happens to your data**
+1. **Baseline:** the first part of your series is used to learn what is *normal for this sensor*.
+2. **Screening (milliseconds per window):** deterministic checks (gaps, frozen values, spikes, drift, noise, clipping, timestamps) plus a trained classifier give a fault probability.
+3. **Decision rule:** high probability → *fault suspected*; low → *healthy*; in between → *needs a human look*. You set where those lines are in the sidebar.
+4. **Engineer message:** flagged windows get a plain-language message. Numbers in it are re-computed and checked, the verdict is forced to follow the decision rule, and fault claims are checked against the measured evidence where a reliable rule exists.
+
+**What you control, and how it changes the results**
+- *Strictness:* stricter = fewer windows get a verdict but those verdicts are more often right; more windows go to humans.
+- *Audit every N points:* smaller = finer timing and more alerts.
+- *History share:* a longer baseline gives a steadier idea of "normal", but less data left to audit.
+- *Window length is fixed* at 256 points because the classifier was trained on that length.
+
+**Limits to keep in mind**
+- The classifier was trained and tested on NAB-based series with *synthetic* faults; accuracy on your sensors is not guaranteed.
+- It spots **data faults**. It cannot reliably tell a genuine process event from normal behaviour.
+- Free-text explanations are only partly verifiable; three of eight fault types have a reliable evidence rule.
+- A history window containing many faults will teach the system a distorted idea of "normal".
+""")
+st.markdown("---")
+st.caption("Built by **Kanika Soni** · B.Tech ECE, UIT-RGPV · Created during the AICTE–BharatCares–IBM SkillsBuild "
+           "ML & Applied AI Internship 2026 · © 2026")
+
+
 # ======================================================================= TAB 1: batch audit
 with tab1:
     src = st.radio("Data source", ["Upload a CSV", "Use a sample series (NAB)"], horizontal=True, key="src")
@@ -408,28 +434,3 @@ with tab2:
                 draw_feed()
         else:
             st.caption("Press **Start** to begin the replay.")
-
-# ======================================================================= TAB 3: about
-with tab3:
-    st.markdown("""
-**What happens to your data**
-1. **Baseline:** the first part of your series is used to learn what is *normal for this sensor*.
-2. **Screening (milliseconds per window):** deterministic checks (gaps, frozen values, spikes, drift, noise, clipping, timestamps) plus a trained classifier give a fault probability.
-3. **Decision rule:** high probability → *fault suspected*; low → *healthy*; in between → *needs a human look*. You set where those lines are in the sidebar.
-4. **Engineer message:** flagged windows get a plain-language message. Numbers in it are re-computed and checked, the verdict is forced to follow the decision rule, and fault claims are checked against the measured evidence where a reliable rule exists.
-
-**What you control, and how it changes the results**
-- *Strictness:* stricter = fewer windows get a verdict but those verdicts are more often right; more windows go to humans.
-- *Audit every N points:* smaller = finer timing and more alerts.
-- *History share:* a longer baseline gives a steadier idea of "normal", but less data left to audit.
-- *Window length is fixed* at 256 points because the classifier was trained on that length.
-
-**Limits to keep in mind**
-- The classifier was trained and tested on NAB-based series with *synthetic* faults; accuracy on your sensors is not guaranteed.
-- It spots **data faults**. It cannot reliably tell a genuine process event from normal behaviour.
-- Free-text explanations are only partly verifiable; three of eight fault types have a reliable evidence rule.
-- A history window containing many faults will teach the system a distorted idea of "normal".
-""")
-st.markdown("---")
-st.caption("Built by **Kanika Soni** · B.Tech ECE, UIT-RGPV · Created during the AICTE–BharatCares–IBM SkillsBuild "
-           "ML & Applied AI Internship 2026 · © 2026")
